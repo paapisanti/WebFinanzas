@@ -84,5 +84,5 @@ export function useInvestments() {
     return { book, ops, positions, open, portfolio, byClass, series: monthlySeries(book, today), today }
   }, [q.data])
 
-  return { ...computed, assets: q.data?.assets ?? [], allOps: q.data?.ops ?? [], isLoading: q.isLoading, error: q.error }
+  return { ...computed, assets: q.data?.assets ?? [], allOps: q.data?.ops ?? [], allPrices: q.data?.prices ?? [], isLoading: q.isLoading, error: q.error }
 }
