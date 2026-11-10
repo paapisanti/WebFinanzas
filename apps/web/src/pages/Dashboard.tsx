@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { supabase } from '../lib/supabase'
+import Alerts from '../components/Alerts'
 import { addMonths, fmtMonth, money, monthStart, ymd } from '../lib/format'
 
 const PRESETS: Record<string, string> = {
@@ -98,6 +99,8 @@ export default function Dashboard() {
           </>}
         </div>
       </div>
+
+      <Alerts />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi label="Activos totales" value={money(last?.assets_total)} />
