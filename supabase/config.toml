@@ -1,0 +1,4 @@
+project_id = "pfm"
+
+[functions.telegram-webhook]
+verify_jwt = false
