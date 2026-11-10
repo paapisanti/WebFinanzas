@@ -1,21 +1,23 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import Login, { MfaChallenge } from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
-import Accounts from './pages/Accounts'
 import Budgets from './pages/Budgets'
+import Investments from './pages/Investments'
 import Subscriptions from './pages/Subscriptions'
+import Accounts from './pages/Accounts'
 import Settings from './pages/Settings'
 import QuickAdd from './components/QuickAdd'
 
 const NAV = [
-  { to: '/', label: 'Resumen', short: 'Resumen', end: true },
-  { to: '/movimientos', label: 'Movimientos', short: 'Movim.' },
-  { to: '/presupuestos', label: 'Presupuestos', short: 'Presup.' },
-  { to: '/suscripciones', label: 'Suscripciones', short: 'Suscr.' },
+  { to: '/', label: 'Resumen', short: 'Resumen', end: true, primary: true },
+  { to: '/movimientos', label: 'Movimientos', short: 'Movim.', primary: true },
+  { to: '/presupuestos', label: 'Presupuestos', short: 'Presup.', primary: true },
+  { to: '/inversiones', label: 'Inversiones', short: 'Inversión', primary: true },
+  { to: '/suscripciones', label: 'Suscripciones', short: 'Suscripciones' },
   { to: '/cuentas', label: 'Cuentas', short: 'Cuentas' },
   { to: '/ajustes', label: 'Ajustes', short: 'Ajustes' },
 ]
@@ -25,6 +27,10 @@ export default function App() {
   const [mfaPending, setMfaPending] = useState(false)
   const [ready, setReady] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [more, setMore] = useState(false)
+  const loc = useLocation()
+
+  useEffect(() => { setMore(false) }, [loc.pathname])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -48,6 +54,10 @@ export default function App() {
   if (mfaPending) return <MfaChallenge onDone={() => setSession({ ...session })} />
   if (!ready) return <div className="p-8 text-mute">Preparando tus datos…</div>
 
+  const primary = NAV.filter((n) => n.primary)
+  const secondary = NAV.filter((n) => !n.primary)
+  const inMore = secondary.some((n) => loc.pathname.startsWith(n.to))
+
   return (
     <div className="h-full flex flex-col md:flex-row">
       <aside className="hidden md:flex w-56 shrink-0 flex-col gap-1 border-r border-line p-4">
@@ -67,6 +77,7 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/movimientos" element={<Transactions />} />
             <Route path="/presupuestos" element={<Budgets />} />
+            <Route path="/inversiones" element={<Investments />} />
             <Route path="/suscripciones" element={<Subscriptions />} />
             <Route path="/cuentas" element={<Accounts />} />
             <Route path="/ajustes" element={<Settings />} />
@@ -78,14 +89,26 @@ export default function App() {
       <button onClick={() => setAdding(true)} aria-label="Añadir movimiento"
         className="md:hidden fixed right-4 bottom-20 z-20 h-14 w-14 rounded-full bg-brass text-ink text-3xl font-semibold shadow-lg">+</button>
 
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-10 bg-panel border-t border-line grid grid-cols-6"
+      {more && (
+        <div className="md:hidden fixed inset-0 z-10" onClick={() => setMore(false)}>
+          <div className="absolute right-2 bottom-16 bg-panel border border-line rounded-xl p-2 w-48 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            {secondary.map((n) => (
+              <NavLink key={n.to} to={n.to} className={({ isActive }) => `block px-3 py-3 rounded-lg ${isActive ? 'bg-raise text-white' : 'text-soft'}`}>{n.label}</NavLink>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-panel border-t border-line grid grid-cols-5"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        {NAV.map((n) => (
+        {primary.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end}
             className={({ isActive }) => `py-3.5 text-center text-xs ${isActive ? 'text-brass font-semibold' : 'text-mute'}`}>
             {n.short}
           </NavLink>
         ))}
+        <button onClick={() => setMore(!more)} aria-expanded={more}
+          className={`py-3.5 text-center text-xs ${inMore || more ? 'text-brass font-semibold' : 'text-mute'}`}>Más</button>
       </nav>
 
       {adding && <QuickAdd onClose={() => setAdding(false)} />}
