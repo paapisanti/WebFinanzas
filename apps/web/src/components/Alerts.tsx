@@ -2,12 +2,17 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useCategories } from '../lib/hooks'
+import { useInvestments } from '../lib/investments'
 import { fmtDate, money, today, ymd } from '../lib/format'
 
 const daysUntil = (d: string) => Math.round((new Date(d + 'T00:00:00').getTime() - new Date(today() + 'T00:00:00').getTime()) / 86400000)
 
 export default function Alerts() {
   const categories = useCategories().data ?? []
+  const inv = useInvestments()
+  const now = new Date()
+  const lastPrev = ymd(new Date(now.getFullYear(), now.getMonth(), 0))
+  const pendingInv = !inv.isLoading && inv.open.some((x) => !x.priceDate || x.priceDate < lastPrev)
   const month = ymd(new Date()).slice(0, 8) + '01'
 
   const budgets = useQuery({
@@ -30,10 +35,16 @@ export default function Alerts() {
 
   const b = budgets.data ?? []
   const s = subs.data ?? []
-  if (b.length === 0 && s.length === 0) return null
+  if (b.length === 0 && s.length === 0 && !pendingInv) return null
 
   return (
     <div className="card space-y-3">
+      {pendingInv && (
+        <div className="flex justify-between items-center gap-3">
+          <span className="text-sm">Toca actualizar la rentabilidad de tus inversiones del mes pasado.</span>
+          <Link to="/inversiones" className="text-sm text-brass whitespace-nowrap">Actualizar</Link>
+        </div>
+      )}
       {b.length > 0 && (
         <div>
           <div className="flex justify-between items-center mb-1"><h2 className="text-white font-semibold">Presupuestos</h2><Link to="/presupuestos" className="text-sm text-brass">Ver todos</Link></div>
