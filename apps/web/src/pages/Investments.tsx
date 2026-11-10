@@ -2,16 +2,16 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { supabase } from '../lib/supabase'
-import { fmtDate, fmtMonth, money } from '../lib/format'
+import { fmtDate, fmtMonth, money, ymd } from '../lib/format'
 import { ASSET_LABEL, isinOk, pctFmt, qtyFmt, useInvestments, type Asset, type AssetType, type OpRow } from '../lib/investments'
 import { useAccounts } from '../lib/hooks'
 import OperationModal from '../components/OperationModal'
 import PricesModal from '../components/PricesModal'
+import PriceHistory from '../components/PriceHistory'
 
 const COLORS = ['#E0B25A', '#7FB2F0', '#6FCF9F', '#B79CED']
 const TIP = { contentStyle: { background: '#1E2638', border: '1px solid #2A3450', borderRadius: 8 }, labelStyle: { color: '#C3C9D9' } }
 const tone = (n: number | null) => (n === null ? 'text-white' : n >= 0 ? 'text-pos' : 'text-neg')
-const daysAgo = (d: string | null, today: string) => (d ? Math.round((new Date(today + 'T00:00:00').getTime() - new Date(d + 'T00:00:00').getTime()) / 86400000) : null)
 
 function Kpi({ label, value, sub, cls }: { label: string; value: string; sub?: string; cls?: string }) {
   return <div className="card"><div className="text-mute text-sm">{label}</div><div className={`text-xl font-bold ${cls ?? 'text-white'}`}>{value}</div>{sub && <div className="text-xs text-mute mt-0.5">{sub}</div>}</div>
@@ -21,10 +21,14 @@ export default function Investments() {
   const qc = useQueryClient()
   const inv = useInvestments()
   const accounts = useAccounts().data ?? []
-  const [tab, setTab] = useState<'cartera' | 'operaciones' | 'activos'>('cartera')
+  const [tab, setTab] = useState<'cartera' | 'operaciones' | 'activos' | 'historico'>('cartera')
   const [opModal, setOpModal] = useState<{ op?: OpRow } | null>(null)
   const [pricesOpen, setPricesOpen] = useState(false)
   const p = inv.portfolio
+  const now = new Date()
+  const lastPrev = ymd(new Date(now.getFullYear(), now.getMonth(), 0))   // último día del mes anterior
+  const prevMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString('es-ES', { month: 'long' })
+  const pending = inv.open.some((x) => !x.priceDate || x.priceDate < lastPrev)
   const assetName = (id: string) => inv.assets.find((a) => a.id === id)?.name ?? ''
   const accName = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'Cuenta eliminada'
 
@@ -63,7 +67,7 @@ export default function Investments() {
     onError: (e: Error) => setAErr(e.message),
   })
 
-  const TABS = [['cartera', 'Cartera'], ['operaciones', 'Operaciones'], ['activos', 'Activos']] as const
+  const TABS = [['cartera', 'Cartera'], ['operaciones', 'Operaciones'], ['activos', 'Activos'], ['historico', 'Histórico']] as const
   const sortedOps = [...inv.allOps].filter((o) => inv.assets.some((a) => a.id === o.asset_id)).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
 
   return (
@@ -71,15 +75,15 @@ export default function Investments() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-white text-2xl font-bold">Inversiones</h1>
         <div className="flex gap-2">
-          <button className="btn-ghost" onClick={() => setPricesOpen(true)}>Actualizar precios</button>
+          <button className="btn-ghost" onClick={() => setPricesOpen(true)}>Actualizar mes</button>
           <button className="btn" onClick={() => inv.assets.length ? setOpModal({}) : setTab('activos')}>+ Operación</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-1 bg-panel border border-line p-1 rounded-lg" role="tablist">
+      <div className="grid grid-cols-4 gap-1 bg-panel border border-line p-1 rounded-lg" role="tablist">
         {TABS.map(([k, l]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={`py-2 rounded-md text-sm ${tab === k ? 'bg-raise text-white font-semibold' : 'text-mute'}`}>{l}</button>
+            className={`py-2 rounded-md text-xs md:text-sm ${tab === k ? 'bg-raise text-white font-semibold' : 'text-mute'}`}>{l}</button>
         ))}
       </div>
 
@@ -87,6 +91,12 @@ export default function Investments() {
       {inv.error && <p className="text-neg text-sm" role="alert">No se pudieron cargar las inversiones.</p>}
 
       {tab === 'cartera' && !inv.isLoading && (<>
+        {pending && (
+          <div className="card flex flex-wrap items-center justify-between gap-3 border-brass">
+            <p className="text-sm text-soft">Falta la actualización de <b className="text-white">{prevMonthName}</b>: apunta cuánto ha subido o bajado cada activo.</p>
+            <button className="btn" onClick={() => setPricesOpen(true)}>Actualizar ahora</button>
+          </div>
+        )}
         {!p.hasOps ? (
           <div className="card text-sm text-mute space-y-2">
             <p className="text-white font-semibold">Aún no tienes inversiones registradas.</p>
@@ -129,7 +139,6 @@ export default function Investments() {
           <h2 className="text-white font-semibold">Posiciones</h2>
           <ul className="space-y-2">
             {inv.open.map((x) => {
-              const age = daysAgo(x.priceDate, inv.today)
               return (
                 <li key={x.asset.id} className="card space-y-2">
                   <div className="flex items-start justify-between gap-3">
@@ -146,7 +155,7 @@ export default function Investments() {
                     <div><span className="text-mute">TWR </span>{pctFmt(x.twr)}</div>
                     <div className="col-span-2"><span className="text-mute">1.ª compra </span>{x.firstBuy ? fmtDate(x.firstBuy) : '—'}</div>
                   </div>
-                  {age !== null && age > 14 && <p className="text-xs text-brass">El último precio es de hace {age} días. Actualízalo para ver el valor real.</p>}
+                  {x.priceDate && <p className="text-xs text-mute">Último valor: {fmtDate(x.priceDate)}</p>}
                 </li>
               )
             })}
@@ -204,8 +213,10 @@ export default function Investments() {
         </form>
       </>)}
 
+      {tab === 'historico' && !inv.isLoading && <PriceHistory assets={inv.assets} prices={inv.allPrices} book={inv.book} />}
+
       {opModal && <OperationModal assets={inv.assets} ops={inv.allOps} op={opModal.op} onClose={() => setOpModal(null)} />}
-      {pricesOpen && <PricesModal positions={inv.open} onClose={() => setPricesOpen(false)} />}
+      {pricesOpen && <PricesModal positions={inv.open} book={inv.book} onClose={() => setPricesOpen(false)} />}
     </div>
   )
 }
