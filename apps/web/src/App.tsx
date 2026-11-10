@@ -6,14 +6,18 @@ import Login, { MfaChallenge } from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
 import Accounts from './pages/Accounts'
+import Budgets from './pages/Budgets'
+import Subscriptions from './pages/Subscriptions'
 import Settings from './pages/Settings'
 import QuickAdd from './components/QuickAdd'
 
 const NAV = [
-  { to: '/', label: 'Resumen', end: true },
-  { to: '/movimientos', label: 'Movimientos' },
-  { to: '/cuentas', label: 'Cuentas' },
-  { to: '/ajustes', label: 'Ajustes' },
+  { to: '/', label: 'Resumen', short: 'Resumen', end: true },
+  { to: '/movimientos', label: 'Movimientos', short: 'Movim.' },
+  { to: '/presupuestos', label: 'Presupuestos', short: 'Presup.' },
+  { to: '/suscripciones', label: 'Suscripciones', short: 'Suscr.' },
+  { to: '/cuentas', label: 'Cuentas', short: 'Cuentas' },
+  { to: '/ajustes', label: 'Ajustes', short: 'Ajustes' },
 ]
 
 export default function App() {
@@ -62,6 +66,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/movimientos" element={<Transactions />} />
+            <Route path="/presupuestos" element={<Budgets />} />
+            <Route path="/suscripciones" element={<Subscriptions />} />
             <Route path="/cuentas" element={<Accounts />} />
             <Route path="/ajustes" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -72,12 +78,12 @@ export default function App() {
       <button onClick={() => setAdding(true)} aria-label="Añadir movimiento"
         className="md:hidden fixed right-4 bottom-20 z-20 h-14 w-14 rounded-full bg-brass text-ink text-3xl font-semibold shadow-lg">+</button>
 
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-10 bg-panel border-t border-line grid grid-cols-4"
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-10 bg-panel border-t border-line grid grid-cols-6"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {NAV.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end}
-            className={({ isActive }) => `py-3.5 text-center text-sm ${isActive ? 'text-brass font-semibold' : 'text-mute'}`}>
-            {n.label}
+            className={({ isActive }) => `py-3.5 text-center text-xs ${isActive ? 'text-brass font-semibold' : 'text-mute'}`}>
+            {n.short}
           </NavLink>
         ))}
       </nav>
