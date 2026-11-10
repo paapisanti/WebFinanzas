@@ -12,6 +12,7 @@ export default function Transactions() {
   const [q, setQ] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [accountId, setAccountId] = useState('')
+  const [showCancelled, setShowCancelled] = useState(false)
   const [editing, setEditing] = useState<Tx | undefined>()
   const accounts = useAccounts().data ?? []
   const categories = useCategories().data ?? []
@@ -33,6 +34,14 @@ export default function Transactions() {
     mutationFn: async (t: Tx) => { await supabase.from('transactions').update({ status: 'anulado' }).eq('id', t.id) },
     onSuccess: refresh,
   })
+  const restore = useMutation({
+    mutationFn: async (t: Tx) => { await supabase.from('transactions').update({ status: 'activo' }).eq('id', t.id) },
+    onSuccess: refresh,
+  })
+  const purge = useMutation({
+    mutationFn: async (t: Tx) => { await supabase.from('transactions').delete().eq('id', t.id) },
+    onSuccess: refresh,
+  })
   const dup = useMutation({
     mutationFn: async (t: Tx) => {
       const { id, status, source, ...rest } = t as any
@@ -42,8 +51,9 @@ export default function Transactions() {
   })
 
   const catName = (id: string | null) => categories.find((c) => c.id === id)?.name ?? ''
-  const accName = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? ''
+  const accName = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? 'Cuenta eliminada'
   const rows = (list.data ?? []).filter((t) =>
+    (showCancelled || t.status === 'activo') &&
     (!categoryId || t.category_id === categoryId) &&
     (!accountId || t.account_id === accountId || t.dest_account_id === accountId) &&
     (!q || (t.description ?? '').toLowerCase().includes(q.toLowerCase()) || catName(t.category_id).toLowerCase().includes(q.toLowerCase())))
@@ -66,6 +76,10 @@ export default function Transactions() {
         </select>
       </div>
 
+      <label className="flex items-center gap-2 text-sm text-mute">
+        <input type="checkbox" checked={showCancelled} onChange={(e) => setShowCancelled(e.target.checked)} /> Mostrar anulados
+      </label>
+
       {list.isLoading && <p className="text-mute">Cargando…</p>}
       {!list.isLoading && rows.length === 0 && <p className="text-mute">No hay movimientos en este periodo. Pulsa + para añadir el primero.</p>}
 
@@ -86,6 +100,12 @@ export default function Transactions() {
             <div className={`font-semibold ${t.type === 'transferencia' ? 'text-soft' : sign(t) > 0 ? 'text-pos' : 'text-neg'}`}>
               {sign(t) < 0 ? '−' : sign(t) > 0 ? '+' : ''}{money(Math.abs(t.amount))}
             </div>
+            {t.status === 'anulado' && (
+              <div className="flex gap-1">
+                <button className="btn-ghost text-sm" onClick={() => restore.mutate(t)}>Restaurar</button>
+                <button className="btn-ghost text-sm text-neg" onClick={() => confirm('¿Eliminar definitivamente este movimiento? No se puede deshacer.') && purge.mutate(t)}>Eliminar</button>
+              </div>
+            )}
             {t.status === 'activo' && (
               <div className="flex gap-1">
                 <button className="btn-ghost text-sm" onClick={() => setEditing(t)}>Editar</button>
