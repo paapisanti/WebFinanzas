@@ -235,7 +235,7 @@ export default function Investments() {
           {editingId && <button type="button" className="btn-ghost" onClick={() => { setEditingId(null); setAName(''); setAErr('') }}>Cancelar</button>}</div>
       </form>
 
-      {contribModal && <ContributionModal assets={inv.assets} contrib={contribModal.c} onClose={() => setContribModal(null)} />}
+      {contribModal && <ContributionModal assets={inv.assets} values={inv.values} contrib={contribModal.c} onClose={() => setContribModal(null)} />}
       {monthOpen && <MonthUpdateModal positions={inv.positions} estimateAt={inv.estimateAt} lastValueOf={inv.lastValueOf} onClose={() => setMonthOpen(false)} />}
     </div>
   )
