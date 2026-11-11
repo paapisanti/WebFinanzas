@@ -12,7 +12,7 @@ export default function Alerts() {
   const inv = useInvestments()
   const now = new Date()
   const lastPrev = ymd(new Date(now.getFullYear(), now.getMonth(), 0))
-  const pendingInv = !inv.isLoading && inv.open.some((x) => !x.priceDate || x.priceDate < lastPrev)
+  const pendingInv = !inv.isLoading && inv.pending
   const month = ymd(new Date()).slice(0, 8) + '01'
 
   const budgets = useQuery({
