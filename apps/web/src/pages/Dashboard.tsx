@@ -158,7 +158,7 @@ export default function Dashboard() {
         <div className="card">
           <h2 className="text-white font-semibold mb-2">Evolución de la cartera</h2>
           {inv.series.length < 2 ? <p className="text-mute text-sm py-10">Aún no hay histórico suficiente.</p> :
-            <ResponsiveContainer width="100%" height={220}><LineChart data={inv.series.map((x) => ({ d: fmtMonth(x.date), Valor: x.value, Aportado: x.contributed }))}>
+            <ResponsiveContainer width="100%" height={220}><LineChart data={inv.series.map((x) => ({ d: fmtMonth(x.date), Valor: x.valor, Aportado: x.aportado }))}>
               <CartesianGrid stroke="#2A3450" vertical={false} /><XAxis dataKey="d" stroke="#8A93AA" fontSize={12} /><YAxis stroke="#8A93AA" fontSize={12} width={60} />
               <Tooltip {...TIP} formatter={(v: number) => money(v)} /><Legend />
               <Line dataKey="Valor" stroke="#E0B25A" strokeWidth={2} dot={false} /><Line dataKey="Aportado" stroke="#8A93AA" strokeWidth={2} strokeDasharray="4 4" dot={false} />
