@@ -5,6 +5,7 @@ import { useAccounts, useCategories } from '../lib/hooks'
 import { addMonths, fmtDate, money, monthStart, today, ymd } from '../lib/format'
 import type { Tx } from '../lib/types'
 import QuickAdd from '../components/QuickAdd'
+import CategoriesModal from '../components/CategoriesModal'
 
 export default function Transactions() {
   const qc = useQueryClient()
@@ -14,6 +15,7 @@ export default function Transactions() {
   const [accountId, setAccountId] = useState('')
   const [showCancelled, setShowCancelled] = useState(false)
   const [editing, setEditing] = useState<Tx | undefined>()
+  const [catsOpen, setCatsOpen] = useState(false)
   const accounts = useAccounts().data ?? []
   const categories = useCategories().data ?? []
 
@@ -62,7 +64,7 @@ export default function Transactions() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-white text-2xl font-bold">Movimientos</h1>
+      <div className="flex items-center justify-between gap-3"><h1 className="text-white text-2xl font-bold">Movimientos</h1><button className="btn-ghost" onClick={() => setCatsOpen(true)}>Categorías</button></div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mes" />
         <input className="input" placeholder="Buscar" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -117,6 +119,7 @@ export default function Transactions() {
         ))}
       </ul>
       {editing && <QuickAdd tx={editing} onClose={() => setEditing(undefined)} />}
+      {catsOpen && <CategoriesModal onClose={() => setCatsOpen(false)} />}
     </div>
   )
 }

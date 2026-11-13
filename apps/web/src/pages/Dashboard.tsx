@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { supabase } from '../lib/supabase'
 import Alerts from '../components/Alerts'
+import BudgetsMonth from '../components/BudgetsMonth'
+import { useAdvanced } from '../lib/hooks'
 import { pctFmt, useInvestments } from '../lib/investments'
 import { addMonths, fmtMonth, money, monthStart, ymd } from '../lib/format'
 
@@ -32,6 +34,8 @@ function Kpi({ label, value, tone, wide }: { label: string; value: string; tone?
 
 export default function Dashboard() {
   const qc = useQueryClient()
+  const advanced = useAdvanced().data ?? false
+  const inv = useInvestments()
   const [preset, setPreset] = useState('actual')
   const [cFrom, setCFrom] = useState(ymd(addMonths(new Date(), -2)).slice(0, 7))
   const [cTo, setCTo] = useState(ymd(new Date()).slice(0, 7))
@@ -74,17 +78,13 @@ export default function Dashboard() {
   const last = snaps.data?.[snaps.data.length - 1]
   const income = (flow.data ?? []).reduce((s, r) => s + Number(r.income), 0)
   const expense = (flow.data ?? []).reduce((s, r) => s + Number(r.expense), 0)
-  const saving = income - expense
-  const rate = income > 0 ? (saving / income) * 100 : 0
   const nwSeries = (snaps.data ?? []).filter((s) => s.date >= f && s.date < t).map((s) => ({ d: fmtMonth(s.date), v: Number(s.net_worth) }))
   const flowSeries = (flow.data ?? []).map((r) => ({ d: fmtMonth(r.month), Ingresos: Number(r.income), Gastos: Number(r.expense) }))
-  const compo = last ? [
+  const compo = (last ? [
     { name: 'Cuentas', value: Number(last.bank) }, { name: 'Efectivo', value: Number(last.cash) },
     { name: 'Inversiones', value: Number(last.investments) }, { name: 'Inmuebles', value: Number(last.real_estate) },
-  ] : []
-
-  const inv = useInvestments()
-  const rateSeries = (flow.data ?? []).map((r) => ({ d: fmtMonth(r.month), v: Number(r.income) > 0 ? ((Number(r.income) - Number(r.expense)) / Number(r.income)) * 100 : 0 }))
+  ] : []).filter((c) => c.name !== 'Inmuebles' || advanced || c.value !== 0)
+  const pnl = inv.portfolio.pnl
 
   return (
     <div className="space-y-6">
@@ -108,15 +108,14 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Kpi label="Activos totales" value={money(last?.assets_total)} />
-        <Kpi label="Pasivos totales" value={money(last?.liabilities)} />
         <Kpi label="Dinero disponible" value={money(Number(last?.bank ?? 0) + Number(last?.cash ?? 0))} />
-        <Kpi label="Total invertido" value={money(last?.investments)} />
-        <Kpi label="Rentabilidad inversiones" value={pctFmt(inv.portfolio.pnlPct)} tone={inv.portfolio.pnl >= 0 ? 'text-pos' : 'text-neg'} />
         <Kpi label="Ingresos" value={money(income)} tone="text-pos" />
         <Kpi label="Gastos" value={money(expense)} tone="text-neg" />
-        <Kpi label="Ahorro" value={money(saving)} tone={saving >= 0 ? 'text-pos' : 'text-neg'} />
-        <Kpi label="Tasa de ahorro" value={`${rate.toFixed(1)} %`} wide />
+        <Kpi label="Rentabilidad inversiones" value={pctFmt(inv.portfolio.pnlPct)} tone={pnl > 0 ? 'text-pos' : pnl < 0 ? 'text-neg' : undefined} wide={!advanced} />
+        {advanced && <Kpi label="Pasivos totales" value={money(last?.liabilities)} />}
       </div>
+
+      <BudgetsMonth />
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="card">
@@ -154,23 +153,6 @@ export default function Dashboard() {
             <ul className="space-y-3 pt-2">{compo.map((c) => (
               <li key={c.name} className="flex justify-between"><span>{c.name}</span><span className="text-white font-semibold">{money(c.value)}</span></li>))}
             </ul>}
-        </div>
-        <div className="card">
-          <h2 className="text-white font-semibold mb-2">Evolución de la cartera</h2>
-          {inv.series.length < 2 ? <p className="text-mute text-sm py-10">Aún no hay histórico suficiente.</p> :
-            <ResponsiveContainer width="100%" height={220}><LineChart data={inv.series.map((x) => ({ d: fmtMonth(x.date), Valor: x.valor, Aportado: x.aportado }))}>
-              <CartesianGrid stroke="#2A3450" vertical={false} /><XAxis dataKey="d" stroke="#8A93AA" fontSize={12} /><YAxis stroke="#8A93AA" fontSize={12} width={60} />
-              <Tooltip {...TIP} formatter={(v: number) => money(v)} /><Legend />
-              <Line dataKey="Valor" stroke="#E0B25A" strokeWidth={2} dot={false} /><Line dataKey="Aportado" stroke="#8A93AA" strokeWidth={2} strokeDasharray="4 4" dot={false} />
-            </LineChart></ResponsiveContainer>}
-        </div>
-        <div className="card">
-          <h2 className="text-white font-semibold mb-2">Evolución de la tasa de ahorro</h2>
-          {rateSeries.length === 0 ? <p className="text-mute text-sm py-10">Sin movimientos en este periodo.</p> :
-            <ResponsiveContainer width="100%" height={220}><LineChart data={rateSeries}>
-              <CartesianGrid stroke="#2A3450" vertical={false} /><XAxis dataKey="d" stroke="#8A93AA" fontSize={12} /><YAxis stroke="#8A93AA" fontSize={12} width={50} unit=" %" />
-              <Tooltip {...TIP} formatter={(v: number) => `${v.toFixed(1)} %`} /><Line dataKey="v" name="Tasa de ahorro" stroke="#6FCF9F" strokeWidth={2} dot={false} />
-            </LineChart></ResponsiveContainer>}
         </div>
       </div>
     </div>

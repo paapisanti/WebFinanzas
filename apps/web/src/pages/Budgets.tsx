@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useCategories } from '../lib/hooks'
 import { addMonths, money, parseAmount, ymd } from '../lib/format'
+import AddButton from '../components/AddButton'
 
 interface Row { id: string; month: string; category_id: string | null; budget: number; spent: number; alert_thresholds: number[] }
 
@@ -32,6 +33,7 @@ export default function Budgets() {
   const [amount, setAmount] = useState('')
   const [th, setTh] = useState<string[] | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const thValues = th ?? defTh
@@ -45,7 +47,7 @@ export default function Budgets() {
     },
   })
 
-  const reset = () => { setCatId(''); setAmount(''); setTh(null); setEditingId(null); setError('') }
+  const reset = () => { setShowForm(false); setCatId(''); setAmount(''); setTh(null); setEditingId(null); setError('') }
 
   const save = useMutation({
     mutationFn: async () => {
@@ -88,7 +90,7 @@ export default function Budgets() {
   function startEdit(r: Row) {
     setEditingId(r.id); setCatId(r.category_id ?? ''); setAmount(String(r.budget).replace('.', ','))
     setTh(r.alert_thresholds.map(String)); setError('')
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+    setShowForm(true); setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
   }
 
   const list = [...(rows.data ?? [])].sort((a, b) => (a.category_id === null ? -1 : b.category_id === null ? 1 : b.spent / b.budget - a.spent / a.budget))
@@ -101,6 +103,7 @@ export default function Budgets() {
         <div className="flex gap-2">
           <input type="month" className="input w-auto" value={month} onChange={(e) => { setMonth(e.target.value); setInfo('') }} aria-label="Mes" />
           <button className="btn-ghost" onClick={() => copyPrev.mutate()}>Copiar del mes anterior</button>
+          <AddButton label="Añadir presupuesto" onClick={() => { reset(); setShowForm(true); setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50) }} />
         </div>
       </div>
       {info && <p className="text-sm text-brass" role="status">{info}</p>}
@@ -136,7 +139,7 @@ export default function Budgets() {
         })}
       </ul>
 
-      <form className="card space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
+      <form className={`card space-y-3 ${showForm ? '' : 'hidden'}`} onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
         <h2 className="text-white font-semibold">{editingId ? 'Editar presupuesto' : 'Nuevo presupuesto'} · {month}</h2>
         <div className="grid md:grid-cols-2 gap-3">
           <div><label className="label" htmlFor="bc">Categoría</label>
@@ -160,7 +163,7 @@ export default function Budgets() {
         {error && <p className="text-neg text-sm" role="alert">{error}</p>}
         <div className="flex gap-2">
           <button className="btn" disabled={save.isPending}>{editingId ? 'Guardar cambios' : 'Guardar presupuesto'}</button>
-          {editingId && <button type="button" className="btn-ghost" onClick={reset}>Cancelar</button>}
+          <button type="button" className="btn-ghost" onClick={reset}>Cancelar</button>
         </div>
       </form>
     </div>

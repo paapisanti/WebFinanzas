@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAccounts, useCategories } from '../lib/hooks'
 import { fmtDate, money, parseAmount, today } from '../lib/format'
+import AddButton from '../components/AddButton'
 
 const FREQ = { semanal: 'Semanal', mensual: 'Mensual', trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual' } as const
 type Freq = keyof typeof FREQ
@@ -26,6 +27,7 @@ export default function Subscriptions() {
   const accName = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? ''
 
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<Form>({ name: '', categoryId: '', amount: '', frequency: 'mensual', start: today(), next: today(), accountId: '' })
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -43,7 +45,7 @@ export default function Subscriptions() {
   const monthly = active.reduce((t, s) => t + s.amount * FACTOR[s.frequency], 0)
   const upcoming = active.filter((s) => daysUntil(s.next_charge_date) <= 30)
 
-  const reset = () => { setEditingId(null); setError(''); setForm({ name: '', categoryId: '', amount: '', frequency: 'mensual', start: today(), next: today(), accountId: '' }) }
+  const reset = () => { setShowForm(false); setEditingId(null); setError(''); setForm({ name: '', categoryId: '', amount: '', frequency: 'mensual', start: today(), next: today(), accountId: '' }) }
   const refresh = () => qc.invalidateQueries()
 
   const save = useMutation({
@@ -94,7 +96,7 @@ export default function Subscriptions() {
     setEditingId(s.id)
     setForm({ name: s.name, categoryId: s.category_id ?? '', amount: String(s.amount).replace('.', ','), frequency: s.frequency, start: s.start_date, next: s.next_charge_date, accountId: s.account_id ?? '' })
     setError('')
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+    setShowForm(true); setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
   }
 
   const Row = ({ s }: { s: Sub }) => {
@@ -124,7 +126,7 @@ export default function Subscriptions() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-white text-2xl font-bold">Suscripciones</h1>
+      <div className="flex items-center gap-3"><h1 className="text-white text-2xl font-bold">Suscripciones</h1><AddButton label="Añadir suscripción" onClick={() => { reset(); setShowForm(true); setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50) }} /></div>
       <div className="grid grid-cols-2 gap-3">
         <div className="card"><div className="text-mute text-sm">Gasto mensual equivalente</div><div className="text-white text-xl font-bold">{money(monthly)}</div></div>
         <div className="card"><div className="text-mute text-sm">Gasto anual estimado</div><div className="text-white text-xl font-bold">{money(monthly * 12)}</div></div>
@@ -151,7 +153,7 @@ export default function Subscriptions() {
         <ul className="space-y-2">{cancelled.map((s) => <Row key={s.id} s={s} />)}</ul>
       </>)}
 
-      <form className="card space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
+      <form className={`card space-y-3 ${showForm ? '' : 'hidden'}`} onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
         <h2 className="text-white font-semibold">{editingId ? 'Editar suscripción' : 'Nueva suscripción'}</h2>
         <div className="grid md:grid-cols-2 gap-3">
           <div><label className="label" htmlFor="sn">Servicio</label><input id="sn" className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
@@ -178,7 +180,7 @@ export default function Subscriptions() {
         {error && <p className="text-neg text-sm" role="alert">{error}</p>}
         <div className="flex gap-2">
           <button className="btn" disabled={save.isPending}>{editingId ? 'Guardar cambios' : 'Añadir suscripción'}</button>
-          {editingId && <button type="button" className="btn-ghost" onClick={reset}>Cancelar</button>}
+          <button type="button" className="btn-ghost" onClick={reset}>Cancelar</button>
         </div>
       </form>
     </div>

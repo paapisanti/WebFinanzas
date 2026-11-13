@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAccounts } from '../lib/hooks'
 import { money, parseAmount, today } from '../lib/format'
 import { ACCOUNT_LABEL, type AccountType, type AccountWithBalance } from '../lib/types'
+import AddButton from '../components/AddButton'
 
 interface FormState { entity: string; name: string; type: AccountType; description: string; initial: string }
 const EMPTY: FormState = { entity: '', name: '', type: 'corriente', description: '', initial: '0' }
@@ -14,10 +15,11 @@ export default function Accounts() {
   const formRef = useRef<HTMLFormElement>(null)
   const [showArchived, setShowArchived] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY)
   const [error, setError] = useState('')
 
-  const reset = () => { setEditingId(null); setForm(EMPTY); setError('') }
+  const reset = () => { setShowForm(false); setEditingId(null); setForm(EMPTY); setError('') }
 
   const save = useMutation({
     mutationFn: async () => {
@@ -39,6 +41,7 @@ export default function Accounts() {
     setEditingId(a.id)
     setForm({ entity: a.entity, name: a.name, type: a.type, description: a.description ?? '', initial: String(a.initial_balance).replace('.', ',') })
     setError('')
+    setShowForm(true)
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
   }
 
@@ -94,7 +97,7 @@ export default function Accounts() {
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between">
-        <h1 className="text-white text-2xl font-bold">Cuentas</h1>
+        <div className="flex items-center gap-3"><h1 className="text-white text-2xl font-bold">Cuentas</h1><AddButton label="Añadir cuenta" onClick={() => { reset(); setShowForm(true); setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50) }} /></div>
         <div className="text-right"><div className="text-mute text-sm">Total en cuentas</div><div className="text-white text-xl font-bold">{money(total)}</div></div>
       </div>
 
@@ -122,7 +125,7 @@ export default function Accounts() {
         <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Mostrar archivadas
       </label>
 
-      <form ref={formRef} className="card space-y-3" onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
+      <form ref={formRef} className={`card space-y-3 ${showForm ? '' : 'hidden'}`} onSubmit={(e) => { e.preventDefault(); save.mutate() }}>
         <h2 className="text-white font-semibold">{editingId ? 'Editar cuenta' : 'Nueva cuenta'}</h2>
         <div className="grid md:grid-cols-2 gap-3">
           <div><label className="label" htmlFor="en">Entidad</label><input id="en" className="input" value={form.entity} onChange={(e) => setForm({ ...form, entity: e.target.value })} /></div>
@@ -138,7 +141,7 @@ export default function Accounts() {
         {error && <p className="text-neg text-sm" role="alert">{error}</p>}
         <div className="flex gap-2">
           <button className="btn" disabled={save.isPending}>{editingId ? 'Guardar cambios' : 'Crear cuenta'}</button>
-          {editingId && <button type="button" className="btn-ghost" onClick={reset}>Cancelar</button>}
+          <button type="button" className="btn-ghost" onClick={reset}>Cancelar</button>
         </div>
       </form>
     </div>

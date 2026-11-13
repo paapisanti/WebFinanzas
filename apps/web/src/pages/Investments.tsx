@@ -7,6 +7,7 @@ import { pctFmt, useInvestments, type Contribution, type ValueRow } from '../lib
 import { useAccounts } from '../lib/hooks'
 import ContributionModal from '../components/ContributionModal'
 import MonthUpdateModal from '../components/MonthUpdateModal'
+import AddButton from '../components/AddButton'
 
 const COLORS = ['#E0B25A', '#7FB2F0', '#6FCF9F', '#B79CED', '#EF8A7C', '#5EC8D4', '#D98BB5', '#A3C76B']
 const TIP = { contentStyle: { background: '#1E2638', border: '1px solid #2A3450', borderRadius: 8 }, labelStyle: { color: '#C3C9D9' } }
@@ -21,7 +22,7 @@ function ChartTip({ active, payload, label }: any) {
     <div style={{ background: '#1E2638', border: '1px solid #2A3450', borderRadius: 8, padding: '8px 12px', fontSize: 13 }}>
       <div style={{ color: '#C3C9D9', marginBottom: 4 }}>{label}</div>
       <div style={{ color: '#8A93AA' }}>Aportado: {money(d.Aportado)}</div>
-      <div style={{ color: '#E0B25A' }}>Valor: {money(d.Valor)}</div>
+      <div style={{ color: d.Ganado >= 0 ? '#6FCF9F' : '#EF8A7C' }}>Valor: {money(d.Valor)}</div>
       <div style={{ color: d.Ganado >= 0 ? '#6FCF9F' : '#EF8A7C' }}>Ganado: {d.Ganado >= 0 ? '+' : '−'}{money(Math.abs(d.Ganado))}</div>
     </div>
   )
@@ -40,6 +41,8 @@ export default function Investments() {
   const [aName, setAName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [aErr, setAErr] = useState('')
+  const [showAssetForm, setShowAssetForm] = useState(false)
+  const closeAssetForm = () => { setShowAssetForm(false); setEditingId(null); setAName(''); setAErr('') }
   const refresh = () => qc.invalidateQueries()
   const p = inv.portfolio
   const prevMonthName = new Date(inv.lastPrev + 'T00:00:00').toLocaleDateString('es-ES', { month: 'long' })
@@ -52,7 +55,7 @@ export default function Investments() {
       const r = editingId ? await supabase.from('assets').update({ name: aName.trim() }).eq('id', editingId) : await supabase.from('assets').insert({ name: aName.trim() })
       if (r.error) throw r.error
     },
-    onSuccess: () => { setAName(''); setEditingId(null); setAErr(''); refresh() },
+    onSuccess: () => { setAName(''); setEditingId(null); setAErr(''); setShowAssetForm(false); refresh() },
     onError: (e: Error) => setAErr(e.message),
   })
   const delAsset = useMutation({
@@ -84,6 +87,20 @@ export default function Investments() {
     onSuccess: refresh,
   })
 
+  const colorOf = (g: number) => (g >= 0 ? '#6FCF9F' : '#EF8A7C')
+  const nS = inv.series.length
+  const flat = nS > 0 && Math.max(...inv.series.map((x) => x.valor)) === Math.min(...inv.series.map((x) => x.valor))
+  const valorStroke = nS < 2 || flat ? colorOf(inv.series[nS - 1]?.ganado ?? 0) : 'url(#valorGrad)'
+  const valorDefs = nS < 2 ? null : (
+    <defs>
+      <linearGradient id="valorGrad" x1="0" y1="0" x2="1" y2="0">
+        {inv.series.flatMap((x, i) => [
+          <stop key={`a${i}`} offset={Math.max(0, (i - 0.5) / (nS - 1))} stopColor={colorOf(x.ganado)} />,
+          <stop key={`b${i}`} offset={Math.min(1, (i + 0.5) / (nS - 1))} stopColor={colorOf(x.ganado)} />,
+        ])}
+      </linearGradient>
+    </defs>
+  )
   const pie = inv.positions.filter((x) => x.valor > 0.005).map((x) => ({ name: x.asset.name, value: x.valor, weight: x.weight }))
   const rows = [...inv.series].reverse()
   const byDateDesc = <T extends { date: string }>(a: T[]) => [...a].sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0))
@@ -94,7 +111,7 @@ export default function Investments() {
         <h1 className="text-white text-2xl font-bold">Inversiones</h1>
         <div className="flex gap-2">
           <button className="btn-ghost" onClick={() => setMonthOpen(true)}>Actualizar mes</button>
-          <button className="btn" onClick={() => inv.assets.length ? setContribModal({}) : document.getElementById('nuevo-activo')?.scrollIntoView({ behavior: 'smooth' })}>+ Aportación</button>
+          <button className="btn" onClick={() => inv.assets.length ? setContribModal({}) : (setShowAssetForm(true), setTimeout(() => document.getElementById('nuevo-activo')?.scrollIntoView({ behavior: 'smooth' }), 50))}>+ Aportación</button>
         </div>
       </div>
 
@@ -127,10 +144,18 @@ export default function Investments() {
             <h2 className="text-white font-semibold mb-2">Evolución de la cartera</h2>
             {inv.series.length < 2 ? <p className="text-mute text-sm py-10">Aparecerá cuando tengas al menos dos meses de datos.</p> :
               <ResponsiveContainer width="100%" height={230}><LineChart data={inv.series.map((s) => ({ d: fmtMonth(s.date), Aportado: s.aportado, Valor: s.valor, Ganado: s.ganado }))}>
+                {valorDefs}
                 <CartesianGrid stroke="#2A3450" vertical={false} /><XAxis dataKey="d" stroke="#8A93AA" fontSize={12} /><YAxis stroke="#8A93AA" fontSize={12} width={60} />
-                <Tooltip content={<ChartTip />} /><Legend />
-                <Line dataKey="Valor" stroke="#E0B25A" strokeWidth={2} dot={false} /><Line dataKey="Aportado" stroke="#8A93AA" strokeWidth={2} strokeDasharray="4 4" dot={false} />
+                <Tooltip content={<ChartTip />} />
+                <Line dataKey="Valor" stroke={valorStroke} strokeWidth={2} dot={false} /><Line dataKey="Aportado" stroke="#8A93AA" strokeWidth={2} strokeDasharray="4 4" dot={false} />
               </LineChart></ResponsiveContainer>}
+            {inv.series.length >= 2 && (
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 text-xs text-mute">
+                <span><span className="inline-block w-3 h-0.5 align-middle mr-1 bg-pos" />Valor, si ganas</span>
+                <span><span className="inline-block w-3 h-0.5 align-middle mr-1 bg-neg" />Valor, si pierdes</span>
+                <span><span className="inline-block w-3 h-0.5 align-middle mr-1 bg-mute" />Aportado</span>
+              </div>
+            )}
           </div>
           <div className="card">
             <h2 className="text-white font-semibold mb-2">Reparto por activo</h2>
@@ -230,8 +255,12 @@ export default function Investments() {
         </details>
       </>)}
 
-      <form id="nuevo-activo" className="card space-y-3" onSubmit={(e) => { e.preventDefault(); saveAsset.mutate() }}>
-        <h2 className="text-white font-semibold">Mis activos</h2>
+      <section id="nuevo-activo" className="card space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-white font-semibold">Mis activos</h2>
+          <AddButton label="Añadir activo" onClick={() => { setEditingId(null); setAName(''); setAErr(''); setShowAssetForm(true) }} />
+        </div>
+        {inv.assets.length === 0 && <p className="text-sm text-mute">Aún no has creado ningún activo. Pulsa + para añadir el primero.</p>}
         <ul className="space-y-2">
           {inv.assets.map((a) => (
             <li key={a.id} className="flex items-center gap-2 text-sm">
@@ -241,12 +270,16 @@ export default function Investments() {
             </li>
           ))}
         </ul>
-        <div><label className="label" htmlFor="an">{editingId ? 'Nuevo nombre' : 'Añadir activo'}</label>
-          <input id="an" className="input" placeholder="Ej. MSCI World" value={aName} onChange={(e) => setAName(e.target.value)} /></div>
         {aErr && <p className="text-neg text-sm" role="alert">{aErr}</p>}
-        <div className="flex gap-2"><button className="btn" disabled={saveAsset.isPending}>{editingId ? 'Guardar nombre' : 'Añadir'}</button>
-          {editingId && <button type="button" className="btn-ghost" onClick={() => { setEditingId(null); setAName(''); setAErr('') }}>Cancelar</button>}</div>
-      </form>
+        {(showAssetForm || editingId) && (
+          <form className="space-y-3 border-t border-line pt-3" onSubmit={(e) => { e.preventDefault(); saveAsset.mutate() }}>
+            <div><label className="label" htmlFor="an">{editingId ? 'Nuevo nombre' : 'Nombre del activo'}</label>
+              <input id="an" className="input" placeholder="Ej. MSCI World" value={aName} onChange={(e) => setAName(e.target.value)} autoFocus /></div>
+            <div className="flex gap-2"><button className="btn" disabled={saveAsset.isPending}>{editingId ? 'Guardar nombre' : 'Añadir'}</button>
+              <button type="button" className="btn-ghost" onClick={closeAssetForm}>Cancelar</button></div>
+          </form>
+        )}
+      </section>
 
       {contribModal && <ContributionModal assets={inv.assets} values={inv.values} contrib={contribModal.c} onClose={() => setContribModal(null)} />}
       {monthOpen && <MonthUpdateModal positions={inv.positions} estimateAt={inv.estimateAt} lastValueOf={inv.lastValueOf} onClose={() => setMonthOpen(false)} />}

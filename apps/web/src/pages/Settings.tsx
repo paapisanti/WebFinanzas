@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { useAccounts } from '../lib/hooks'
+import { useAccounts, useAdvanced } from '../lib/hooks'
 
 export default function Settings() {
   const [msg, setMsg] = useState('')
@@ -17,6 +17,14 @@ export default function Settings() {
       return (data?.default_account_id as string | null) ?? ''
     },
   })
+  const adv = useAdvanced()
+  async function setAdvanced(on: boolean) {
+    const { data: u } = await supabase.auth.getUser()
+    if (!u.user) return
+    const { error } = await supabase.from('settings').update({ advanced_mode: on }).eq('user_id', u.user.id)
+    setMsg(error ? `Error: ${error.message}. ¿Has ejecutado el script 0004 en Supabase?` : on ? 'Modo avanzado activado.' : 'Modo avanzado desactivado.')
+    qc.invalidateQueries({ queryKey: ['advanced'] })
+  }
   async function setDefault(id: string) {
     const { data: u } = await supabase.auth.getUser()
     if (!u.user) return
@@ -61,6 +69,15 @@ export default function Settings() {
             <button className="btn" onClick={verify}>Confirmar</button>
           </div>
         )}
+      </section>
+
+      <section className="card space-y-3">
+        <h2 className="text-white font-semibold">Modo avanzado</h2>
+        <p className="text-sm text-mute">Añade la sección Patrimonio, con inmuebles, hipotecas, préstamos y otras deudas, y muestra los pasivos en el Resumen.</p>
+        <label className="flex items-center gap-3">
+          <input type="checkbox" checked={adv.data ?? false} onChange={(e) => setAdvanced(e.target.checked)} />
+          <span className="text-white">Activar modo avanzado</span>
+        </label>
       </section>
 
       <section className="card space-y-3">
