@@ -10,6 +10,8 @@ import Investments from './pages/Investments'
 import Subscriptions from './pages/Subscriptions'
 import Accounts from './pages/Accounts'
 import Settings from './pages/Settings'
+import Patrimonio from './pages/Patrimonio'
+import { useAdvanced } from './lib/hooks'
 import QuickAdd from './components/QuickAdd'
 
 const NAV = [
@@ -18,6 +20,7 @@ const NAV = [
   { to: '/presupuestos', label: 'Presupuestos', short: 'Presup.', primary: true },
   { to: '/inversiones', label: 'Inversiones', short: 'Inversión', primary: true },
   { to: '/suscripciones', label: 'Suscripciones', short: 'Suscripciones' },
+  { to: '/patrimonio', label: 'Patrimonio', short: 'Patrimonio', adv: true },
   { to: '/cuentas', label: 'Cuentas', short: 'Cuentas' },
   { to: '/ajustes', label: 'Ajustes', short: 'Ajustes' },
 ]
@@ -29,6 +32,7 @@ export default function App() {
   const [adding, setAdding] = useState(false)
   const [more, setMore] = useState(false)
   const loc = useLocation()
+  const advanced = useAdvanced(ready).data ?? false
 
   useEffect(() => { setMore(false) }, [loc.pathname])
 
@@ -54,15 +58,16 @@ export default function App() {
   if (mfaPending) return <MfaChallenge onDone={() => setSession({ ...session })} />
   if (!ready) return <div className="p-8 text-mute">Preparando tus datos…</div>
 
-  const primary = NAV.filter((n) => n.primary)
-  const secondary = NAV.filter((n) => !n.primary)
+  const items = NAV.filter((n) => !n.adv || advanced)
+  const primary = items.filter((n) => n.primary)
+  const secondary = items.filter((n) => !n.primary)
   const inMore = secondary.some((n) => loc.pathname.startsWith(n.to))
 
   return (
     <div className="h-full flex flex-col md:flex-row">
       <aside className="hidden md:flex w-56 shrink-0 flex-col gap-1 border-r border-line p-4">
         <div className="text-white font-bold text-lg mb-6 px-3">Finanzas</div>
-        {NAV.map((n) => (
+        {items.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end}
             className={({ isActive }) => `px-3 py-2 rounded-lg ${isActive ? 'bg-raise text-white' : 'text-mute hover:text-soft'}`}>
             {n.label}
@@ -79,6 +84,7 @@ export default function App() {
             <Route path="/presupuestos" element={<Budgets />} />
             <Route path="/inversiones" element={<Investments />} />
             <Route path="/suscripciones" element={<Subscriptions />} />
+            <Route path="/patrimonio" element={advanced ? <Patrimonio /> : <Navigate to="/" replace />} />
             <Route path="/cuentas" element={<Accounts />} />
             <Route path="/ajustes" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
