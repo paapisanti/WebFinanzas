@@ -28,3 +28,14 @@ export function useCategories() {
     },
   })
 }
+
+export function useAdvanced(enabled = true) {
+  return useQuery({
+    queryKey: ['advanced'],
+    enabled,
+    queryFn: async (): Promise<boolean> => {
+      const { data } = await supabase.from('settings').select('advanced_mode').maybeSingle()
+      return !!(data as { advanced_mode?: boolean } | null)?.advanced_mode
+    },
+  })
+}
