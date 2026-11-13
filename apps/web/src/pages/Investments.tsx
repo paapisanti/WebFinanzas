@@ -14,6 +14,19 @@ const tone = (n: number | null) => (n === null || n === 0 ? 'text-white' : n > 0
 const signed = (n: number) => `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`
 const sPct = (n: number | null) => (n === null ? '—' : `${n >= 0 ? '+' : ''}${pctFmt(n)}`)
 
+function ChartTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload as { Aportado: number; Valor: number; Ganado: number }
+  return (
+    <div style={{ background: '#1E2638', border: '1px solid #2A3450', borderRadius: 8, padding: '8px 12px', fontSize: 13 }}>
+      <div style={{ color: '#C3C9D9', marginBottom: 4 }}>{label}</div>
+      <div style={{ color: '#8A93AA' }}>Aportado: {money(d.Aportado)}</div>
+      <div style={{ color: '#E0B25A' }}>Valor: {money(d.Valor)}</div>
+      <div style={{ color: d.Ganado >= 0 ? '#6FCF9F' : '#EF8A7C' }}>Ganado: {d.Ganado >= 0 ? '+' : '−'}{money(Math.abs(d.Ganado))}</div>
+    </div>
+  )
+}
+
 function Kpi({ label, value, sub, cls }: { label: string; value: string; sub?: string; cls?: string }) {
   return <div className="card"><div className="text-mute text-sm">{label}</div><div className={`text-xl font-bold ${cls ?? 'text-white'}`}>{value}</div>{sub && <div className={`text-xs mt-0.5 ${cls ?? 'text-mute'}`}>{sub}</div>}</div>
 }
@@ -111,12 +124,12 @@ export default function Investments() {
 
         <div className="grid md:grid-cols-2 gap-4">
           <div className="card">
-            <h2 className="text-white font-semibold mb-2">Aportado y ganado</h2>
+            <h2 className="text-white font-semibold mb-2">Evolución de la cartera</h2>
             {inv.series.length < 2 ? <p className="text-mute text-sm py-10">Aparecerá cuando tengas al menos dos meses de datos.</p> :
-              <ResponsiveContainer width="100%" height={230}><LineChart data={inv.series.map((s) => ({ d: fmtMonth(s.date), Aportado: s.aportado, Ganado: s.ganado }))}>
+              <ResponsiveContainer width="100%" height={230}><LineChart data={inv.series.map((s) => ({ d: fmtMonth(s.date), Aportado: s.aportado, Valor: s.valor, Ganado: s.ganado }))}>
                 <CartesianGrid stroke="#2A3450" vertical={false} /><XAxis dataKey="d" stroke="#8A93AA" fontSize={12} /><YAxis stroke="#8A93AA" fontSize={12} width={60} />
-                <Tooltip {...TIP} formatter={(v: number) => money(v)} /><Legend />
-                <Line dataKey="Aportado" stroke="#8A93AA" strokeWidth={2} dot={false} /><Line dataKey="Ganado" stroke="#6FCF9F" strokeWidth={2} dot={false} />
+                <Tooltip content={<ChartTip />} /><Legend />
+                <Line dataKey="Valor" stroke="#E0B25A" strokeWidth={2} dot={false} /><Line dataKey="Aportado" stroke="#8A93AA" strokeWidth={2} strokeDasharray="4 4" dot={false} />
               </LineChart></ResponsiveContainer>}
           </div>
           <div className="card">
